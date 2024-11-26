@@ -38,6 +38,7 @@ protected:
 	afx_msg LRESULT MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT MsgUpConditionItem(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT MsgDownConditionItem(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT MsgClickConditionItem(WPARAM wParam, LPARAM lParam);
 
 	int GetTop(ConditionItemDlg* item);
 

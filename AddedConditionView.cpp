@@ -78,6 +78,12 @@ LRESULT AddedConditionView::MsgDownConditionItem(WPARAM wParam, LPARAM lParam)
 	return LRESULT();
 }
 
+LRESULT AddedConditionView::MsgClickConditionItem(WPARAM wParam, LPARAM lParam)
+{
+	GetParent()->SendMessage(CM_CLICK_CONDITIONITEM, wParam);
+	return LRESULT();
+}
+
 int AddedConditionView::GetTop(ConditionItemDlg* item)
 {
 	if (item == nullptr)
@@ -131,6 +137,7 @@ BEGIN_MESSAGE_MAP(AddedConditionView, CFormView)
 	ON_MESSAGE(CM_DELETE_CONDITIONITEM, &AddedConditionView::MsgDeleteConditionItem)
 	ON_MESSAGE(CM_UP_CONDITIONITEM, &AddedConditionView::MsgUpConditionItem)
 	ON_MESSAGE(CM_DOWN_CONDITIONITEM, &AddedConditionView::MsgDownConditionItem)
+	ON_MESSAGE(CM_CLICK_CONDITIONITEM, &AddedConditionView::MsgClickConditionItem)
 END_MESSAGE_MAP()
 
 #ifdef _DEBUG

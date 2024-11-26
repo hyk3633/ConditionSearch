@@ -39,8 +39,8 @@ BEGIN_MESSAGE_MAP(CConditionSearchDlg, CDialogEx)
 //	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE_CONDITIONLIST, &CConditionSearchDlg::OnTvnSelchangedTreeConditionlist)
 	ON_NOTIFY(NM_DBLCLK, IDC_TREE_CONDITIONLIST, &CConditionSearchDlg::OnNMDblclkTreeConditionlist)
+	ON_MESSAGE(CM_CLICK_CONDITIONITEM, &CConditionSearchDlg::MsgClickConditionItem)
 	ON_MESSAGE(CM_DELETE_CONDITIONITEM, &CConditionSearchDlg::MsgDeleteConditionItem)
 	ON_WM_CREATE()
 	ON_BN_CLICKED(IDC_BTN_ADD, &CConditionSearchDlg::OnBtnClickedBtnAdd)
@@ -242,31 +242,81 @@ HCURSOR CConditionSearchDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+LRESULT CConditionSearchDlg::MsgClickConditionItem(WPARAM wParam, LPARAM lParam)
+{
+	const std::string index((char*)wParam);
+
+	ClearCurrentControls();
+	ShowCurrentControls(index);
+
+	return LRESULT();
+}
+
 LRESULT CConditionSearchDlg::MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam)
 {
 	const std::string index((char*)wParam);
 	if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
 		return LRESULT();
 
+	
+
+	for (auto& control : addedConditionInfoMap[index]->currentControls)
+	{
+		if (control.first != nullptr)
+		{
+			control.first->ShowWindow(SW_HIDE);
+			control.first->DestroyWindow();
+			delete control.first;
+		}
+	}
+
 	addedConditionInfoMap.erase(index);
 	std::cout << "delete condition item\n";
 
-	/*ClearCurrentControls();
+	//ClearCurrentControls();
 
-	GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_DISABLED);
-	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);*/
+	//GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_DISABLED);
+	//GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);
 
 	return LRESULT();
 }
 
 void CConditionSearchDlg::ClearCurrentControls()
 {
-	for (auto& control : currentControls)
+	if (currentAddedControls)
 	{
-		if (control.first != nullptr)
-			delete control.first;
+		for (auto& control : *currentAddedControls)
+		{
+			control.first->ShowWindow(SW_HIDE);
+		}
+		currentAddedControls = nullptr;
 	}
-	currentControls.clear();
+	else
+	{
+		for (auto& control : currentControls)
+		{
+			if (control.first != nullptr)
+			{
+				control.first->ShowWindow(SW_HIDE);
+				control.first->DestroyWindow();
+				delete control.first;
+			}
+		}
+		currentControls.clear();
+	}
+}
+
+void CConditionSearchDlg::ShowCurrentControls(const std::string& index)
+{
+	if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
+		return;
+
+	auto& condInfo = addedConditionInfoMap[index];
+	for (auto& control : condInfo->currentControls)
+	{
+		control.first->ShowWindow(SW_SHOW);
+	}
+	currentAddedControls = &condInfo->currentControls;
 }
 
 CString CConditionSearchDlg::GetItemText()
@@ -276,13 +326,6 @@ CString CConditionSearchDlg::GetItemText()
 		return m_TreeCtrl.GetItemText(hSelectedItem);
 	else
 		return CString();
-}
-
-void CConditionSearchDlg::OnTvnSelchangedTreeConditionlist(NMHDR* pNMHDR, LRESULT* pResult)
-{
-	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	*pResult = 0;
 }
 
 void CConditionSearchDlg::OnNMDblclkTreeConditionlist(NMHDR* pNMHDR, LRESULT* pResult)
@@ -343,14 +386,14 @@ void CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& co
 			CStatic* cStatic = new CStatic();
 			
 			CString caption = MultibyteToUnicode(att.staticCaption.c_str()).c_str();
-			cStatic->Create(caption, WS_VISIBLE | SS_LEFT | SS_LEFTNOWORDWRAP, rect, this, ID_START + att.id);
+			cStatic->Create(caption, WS_VISIBLE | SS_LEFT | SS_LEFTNOWORDWRAP, rect, this, ID_START + att.id + idCount);
 
 			wnd = cStatic;
 		}
 		else if (att.controlType == EControlType::ECT_Edit)
 		{
 			CEdit* edit = new CEdit();
-			edit->Create(WS_VISIBLE | SS_LEFT, rect, this, ID_START + att.id);
+			edit->Create(WS_VISIBLE | SS_LEFT, rect, this, ID_START + att.id + idCount++);
 			CString defaultValue = MultibyteToUnicode(att.defaultValue.c_str()).c_str();
 			edit->SetWindowText(defaultValue);
 			
@@ -360,7 +403,7 @@ void CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& co
 		{
 			CButton* button = new CButton();
 			CString caption = MultibyteToUnicode(att.staticCaption.c_str()).c_str();
-			button->Create(caption, WS_VISIBLE | BS_AUTORADIOBUTTON, rect, this, ID_START + att.id);
+			button->Create(caption, WS_VISIBLE | BS_AUTORADIOBUTTON, rect, this, ID_START + att.id + idCount);
 			
 			if (firstRadio)
 			{
@@ -373,13 +416,15 @@ void CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& co
 		else if (att.controlType == EControlType::ECT_ComboBox)
 		{
 			CComboBox* comboBox = new CComboBox();
-			comboBox->Create(WS_VISIBLE | CBS_DROPDOWN, rect, this, ID_START + att.id);
+			comboBox->Create(WS_VISIBLE | CBS_DROPDOWN, rect, this, ID_START + att.id + idCount);
 			for (const std::string& item : att.comboItem)
 				comboBox->AddString(MultibyteToUnicode(item.c_str()).c_str());
 			comboBox->SetCurSel(0);
 
 			wnd = comboBox;
 		}
+
+		idCount += 50;
 
 		SetControlFontSize(this, wnd, 8);
 		currentControls.emplace_back(std::make_pair(wnd, att));
@@ -414,6 +459,8 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 	
 	addedCondInfoPtr->addedConditionId = xmlParserPtr->GetConditionId(GetItemText());
 
+	addedCondInfoPtr->currentControls = currentControls;
+	currentAddedControls = &addedCondInfoPtr->currentControls;
 	MakeCompleteText(addedCondInfoPtr->completeText, addedCondInfoPtr->completeTextCStr);
 	SaveCtrlValue(addedCondInfoPtr->currentCtrlValues, addedCondInfoPtr->savedControlValues);
 
@@ -427,6 +474,8 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 
 	GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
 	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
+
+	currentControls.clear();
 }
 
 bool CConditionSearchDlg::IsAbleToAddCondition()

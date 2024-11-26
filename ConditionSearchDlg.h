@@ -68,15 +68,16 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 
+	afx_msg LRESULT MsgClickConditionItem(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam);
 
 	void ClearCurrentControls();
 
+	void ShowCurrentControls(const std::string& index);
+
 	CString GetItemText();
 
 public:
-
-	afx_msg void OnTvnSelchangedTreeConditionlist(NMHDR* pNMHDR, LRESULT* pResult);
 
 	afx_msg void OnNMDblclkTreeConditionlist(NMHDR* pNMHDR, LRESULT* pResult);
 
@@ -158,6 +159,8 @@ private:
 
 	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
 
+	std::vector<std::pair<CWnd*, ControlAttribute>>* currentAddedControls;
+
 	std::string addedConditionIndex;
 
 	std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>> addedConditionInfoMap;
@@ -185,5 +188,7 @@ private:
 	bool bPreviewMode = false;
 
 	AddedConditionView* addedConditionView;
+
+	int idCount = 0;
 
 };

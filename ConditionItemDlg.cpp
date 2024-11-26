@@ -65,7 +65,7 @@ std::string ConditionItemDlg::GetCompleteText()
 
 void ConditionItemDlg::OnStnClickedStaticCompleteText()
 {
-	
+	GetParent()->SendMessage(CM_CLICK_CONDITIONITEM, (WPARAM)&index[0], 1);
 }
 
 
