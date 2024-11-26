@@ -21,12 +21,10 @@ ConditionItemDlg::~ConditionItemDlg()
 {
 }
 
-void ConditionItemDlg::SetConditionIndex(const char index)
+void ConditionItemDlg::SetConditionIndex(const std::string& idx)
 {
-	conditionIndex = index;
-	std::string str;
-	str += index;
-	SetDlgItemText(IDC_CHECK_INDEX, (LPCTSTR)str.c_str());
+	index = idx;
+	SetDlgItemText(IDC_CHECK_INDEX, (LPCTSTR)idx.c_str());
 }
 
 void ConditionItemDlg::DoDataExchange(CDataExchange* pDX)
@@ -41,13 +39,15 @@ void ConditionItemDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(ConditionItemDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_DELETE, &ConditionItemDlg::OnBnClickedBtnDelete)
 	ON_STN_CLICKED(IDC_STATIC_COMPLETE_TEXT, &ConditionItemDlg::OnStnClickedStaticCompleteText)
+	ON_BN_CLICKED(IDC_BTN_UP, &ConditionItemDlg::OnBnClickedBtnUp)
+	ON_BN_CLICKED(IDC_BTN_DOWN, &ConditionItemDlg::OnBnClickedBtnDown)
 END_MESSAGE_MAP()
 
 // ConditionItemDlg 메시지 처리기
 
 void ConditionItemDlg::OnBnClickedBtnDelete()
 {
-	GetParent()->SendMessage(CM_DELETE_CONDITIONITEM);
+	GetParent()->SendMessage(CM_DELETE_CONDITIONITEM, (WPARAM)&index[0], 1);
 }
 
 void ConditionItemDlg::SetConditionText(const CString& completeText)
@@ -66,4 +66,16 @@ std::string ConditionItemDlg::GetCompleteText()
 void ConditionItemDlg::OnStnClickedStaticCompleteText()
 {
 	
+}
+
+
+void ConditionItemDlg::OnBnClickedBtnUp()
+{
+	GetParent()->SendMessage(CM_UP_CONDITIONITEM, (WPARAM)&index[0], 1);
+}
+
+
+void ConditionItemDlg::OnBnClickedBtnDown()
+{
+	GetParent()->SendMessage(CM_DOWN_CONDITIONITEM, (WPARAM)&index[0], 1);
 }

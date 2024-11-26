@@ -20,7 +20,25 @@
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
 #endif
 
+#define MAX_CONDITION 10
+
 class ConditionItemDlg;
+class AddedConditionView;
+
+struct AddedConditionInfo
+{
+	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
+
+	std::vector<std::pair<int, std::string>> savedControlValues;
+
+	std::vector<std::string> currentCtrlValues;
+
+	std::string addedConditionId;
+
+	std::string completeText;
+
+	CString completeTextCStr;
+};
 
 // CConditionSearchDlg 대화 상자
 class CConditionSearchDlg : public CDialogEx
@@ -76,13 +94,19 @@ public:
 
 protected:
 
-	void MakeCompleteText();
+	bool IsAbleToAddCondition();
+
+	void MakeCompleteText(std::string& completeText, CString& completeTextCStr);
 
 	void ReplacePakcetIdToValue(const EControlType controlType, const int ctrlId, const std::string& packetId, std::string& completeText);
 
-	void CreateConditionDialog();
+	ConditionItemDlg* CreateConditionDialog(const CString& completeTextCStr);
 
-	void SaveCtrlValue();
+	int GetConditionDlgY();
+
+	void SaveCtrlValue(std::vector<std::string>& currentCtrlValues, std::vector<std::pair<int, std::string>>& savedCtrlValues);
+
+	void PlusAddedConditionIndex();
 
 public:
 
@@ -125,27 +149,22 @@ private:
 
 	CListCtrl m_ListCtrl;
 
-	ConditionItemDlg* m_ConditionItem;
-
 	std::unique_ptr<XMLParser> xmlParserPtr;
 
 	std::unique_ptr<CSVParser> csvParserPtr;
 
 	std::unique_ptr<JsonParser> jsonParserPtr;
 
+
 	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
 
-	std::vector<std::pair<int, std::string>> savedControlValues;
+	std::string addedConditionIndex;
 
-	std::vector<HTREEITEM> highlightedItems;
+	std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>> addedConditionInfoMap;
 
-	std::vector<std::string> currentCtrlValues;
+	std::unordered_map<std::string, ConditionItemDlg*> addedConditionDlgMap;
 
-	std::string addedConditionId;
-
-	std::string completeText;
-
-	CString completeTextCStr;
+	std::string selectedConditionIndex;
 
 	CString conditionSavePath = L"..//Condition";
 
@@ -164,5 +183,7 @@ private:
 	CConditionSearchDlg* previewDlg;
 
 	bool bPreviewMode = false;
+
+	AddedConditionView* addedConditionView;
 
 };

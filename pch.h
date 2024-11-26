@@ -14,6 +14,8 @@
 #include <vector>
 
 #define CM_DELETE_CONDITIONITEM (WM_USER + 1)
+#define CM_UP_CONDITIONITEM (WM_USER + 2)
+#define CM_DOWN_CONDITIONITEM (WM_USER + 3)
 
 #define CONT_TYPE "TYPE"
 #define CONT_ID "ID"

@@ -6,21 +6,21 @@
 #include "ConditionSearchDlg.h"
 #include "afxdialogex.h"
 #include "ConditionItemDlg.h"
-
+#include "AddedConditionView.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 #define LEFT_START 330
-#define TOP_START 160
+#define TOP_START 200
 
 #define CONDITION_ITEM_Y 30
 
 #define ID_START 10500
 
 CConditionSearchDlg::CConditionSearchDlg(CWnd* pParent /*=nullptr*/)
-	: CDialogEx(IDD_CONDITIONSEARCH_DIALOG, pParent)
+	: CDialogEx(IDD_CONDITIONSEARCH_DIALOG, pParent), addedConditionIndex("A")
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -151,8 +151,8 @@ BOOL CConditionSearchDlg::OnInitDialog()
 		}
 	}
 
-	jsonParserPtr = std::make_unique<JsonParser>();
-	jsonParserPtr->LoadStatus(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
+	//jsonParserPtr = std::make_unique<JsonParser>();
+	//jsonParserPtr->LoadStatus(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
 
 	// 배경 색 설정
 	SetBackgroundColor(currentBgColor);
@@ -164,28 +164,34 @@ BOOL CConditionSearchDlg::OnInitDialog()
 		control->UpdateWindow();
 	}
 	
-	if (addedConditionId.length() > 0)
-	{
-		// 조건 컨트롤 생성 및 값 설정
-		LoadControlStatus();
+	//if (addedConditionId.length() > 0)
+	//{
+	//	// 조건 컨트롤 생성 및 값 설정
+	//	LoadControlStatus();
 
-		m_BtnModify.EnableWindow(true);
+	//	m_BtnModify.EnableWindow(true);
 
-		// 컨디션 dlg 생성 및 텍스트 설정
-		completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
-		CreateConditionDialog();
-	}
+	//	// 컨디션 dlg 생성 및 텍스트 설정
+	//	completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
+	//	CreateConditionDialog();
+	//}
 
 	colorChangeDlg = ::CreateDlg();
 	colorChangeDlg->SetDlgVariable(this, fontColorControls, &currentBgColor, &currentFontColor);
 	colorChangeDlg->SetPreviewDlgVariable(previewDlg, previewDlg->GetFontColorControls(), previewDlg->GetBgColor(), previewDlg->GetFontColor());
 
-	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
+	addedConditionView = new AddedConditionView();
+	CRect viewRect{ LEFT_START, 50, LEFT_START + 900, 260 };
+	addedConditionView->Create(NULL, NULL, WS_CHILD | WS_VSCROLL, viewRect, this, IDD_FORMVIEW, NULL);
+	addedConditionView->OnInitialUpdate();
+	addedConditionView->ShowWindow(SW_SHOW);
+
+	return TRUE;
 }
 
 void CConditionSearchDlg::LoadControlStatus()
 {
-	const auto& controlInfo = xmlParserPtr->GetControlInfo(addedConditionId);
+	/*const auto& controlInfo = xmlParserPtr->GetControlInfo(addedConditionId);
 	CreateControls(controlInfo);
 
 	for (auto& pair : savedControlValues)
@@ -203,7 +209,7 @@ void CConditionSearchDlg::LoadControlStatus()
 				}
 			}
 		}
-	}
+	}*/
 }
 
 void CConditionSearchDlg::OnPaint()
@@ -238,21 +244,17 @@ HCURSOR CConditionSearchDlg::OnQueryDragIcon()
 
 LRESULT CConditionSearchDlg::MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam)
 {
-	addedConditionId = "";
-	completeText = "";
-	completeTextCStr = L"";
+	const std::string index((char*)wParam);
+	if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
+		return LRESULT();
 
-	m_BtnAdd.EnableWindow(false);
-	m_BtnModify.EnableWindow(false);
+	addedConditionInfoMap.erase(index);
+	std::cout << "delete condition item\n";
 
-	m_ConditionItem->DestroyWindow();
-	delete m_ConditionItem;
-	m_ConditionItem = nullptr;
-
-	ClearCurrentControls();
+	/*ClearCurrentControls();
 
 	GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_DISABLED);
-	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);
+	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);*/
 
 	return LRESULT();
 }
@@ -285,13 +287,13 @@ void CConditionSearchDlg::OnTvnSelchangedTreeConditionlist(NMHDR* pNMHDR, LRESUL
 
 void CConditionSearchDlg::OnNMDblclkTreeConditionlist(NMHDR* pNMHDR, LRESULT* pResult)
 {
-	if (m_ConditionItem != nullptr || bPreviewMode)
+	if (bPreviewMode)
 		return;
 
 	if (CheckIsCondition())
 	{
 		ClearCurrentControls();
-
+		
 		// 세부 설정 창 생성
 		const auto& controlInfo = xmlParserPtr->GetControlInfo(GetItemText());
 		CreateControls(controlInfo);
@@ -405,11 +407,21 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 	if (CheckIsCondition() == false)
 		return;
 
-	addedConditionId = xmlParserPtr->GetConditionId(GetItemText());
+	if (IsAbleToAddCondition() == false)
+		return;
 
-	MakeCompleteText();
-	CreateConditionDialog();
-	SaveCtrlValue();
+	std::shared_ptr<AddedConditionInfo> addedCondInfoPtr = std::make_shared<AddedConditionInfo>();
+	
+	addedCondInfoPtr->addedConditionId = xmlParserPtr->GetConditionId(GetItemText());
+
+	MakeCompleteText(addedCondInfoPtr->completeText, addedCondInfoPtr->completeTextCStr);
+	SaveCtrlValue(addedCondInfoPtr->currentCtrlValues, addedCondInfoPtr->savedControlValues);
+
+	addedConditionInfoMap[addedConditionIndex] = addedCondInfoPtr;
+
+	addedConditionView->Add(addedConditionIndex, addedCondInfoPtr->completeTextCStr);
+	PlusAddedConditionIndex();
+
 	m_BtnModify.EnableWindow(true);
 	m_BtnAdd.EnableWindow(false);
 
@@ -417,7 +429,20 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
 }
 
-void CConditionSearchDlg::MakeCompleteText()
+bool CConditionSearchDlg::IsAbleToAddCondition()
+{
+	if (addedConditionInfoMap.size() < MAX_CONDITION)
+	{
+		return true;
+	}
+	else
+	{
+		AfxMessageBox(L"조건 추가는 10개 까지 가능합니다.");
+		return false;
+	}
+}
+
+void CConditionSearchDlg::MakeCompleteText(std::string& completeText, CString& completeTextCStr)
 {
 	if (CheckIsCondition() == false)
 		return;
@@ -490,36 +515,27 @@ void CConditionSearchDlg::ReplacePakcetIdToValue(const EControlType controlType,
 		completeText.replace(completeText.find(bracedPacketId), bracedPacketId.length(), newText);
 }
 
-void CConditionSearchDlg::CreateConditionDialog()
+ConditionItemDlg* CConditionSearchDlg::CreateConditionDialog(const CString& completeTextCStr)
 {
-	m_ConditionItem = new ConditionItemDlg();
-	m_ConditionItem->Create(IDD_CONDITIONITEM, this);
-	m_ConditionItem->ShowWindow(SW_HIDE);
-	m_ConditionItem->SetWindowPos(NULL, 330, 50, 0, 0, SWP_NOSIZE);
+	ConditionItemDlg* addedConditionDlg = new ConditionItemDlg();
+	addedConditionDlg->Create(IDD_CONDITIONITEM, addedConditionView);
+	addedConditionDlg->ShowWindow(SW_HIDE);
+	addedConditionDlg->SetWindowPos(NULL, 330, GetConditionDlgY(), 0, 0, SWP_NOSIZE);
 
 	// 종목검색조건 다이얼로그에 표시될 텍스트 설정
-	m_ConditionItem->SetConditionText(completeTextCStr);
-	m_ConditionItem->ShowWindow(SW_SHOW);
+	addedConditionDlg->SetConditionText(completeTextCStr);
+	addedConditionDlg->ShowWindow(SW_SHOW);
+
+	return addedConditionDlg;
 }
 
-void CConditionSearchDlg::SaveCtrlValue()
+int CConditionSearchDlg::GetConditionDlgY()
 {
-	currentCtrlValues.clear();
+	return (addedConditionDlgMap.size() + 1) * 50;
+}
 
-	for (auto& pair : currentControls)
-	{
-		auto ctrlType = pair.second.controlType;
-		if (ctrlType == EControlType::ECT_Static || ctrlType == EControlType::ECT_None)
-			continue;
-
-		CString ctrlText;
-		GetDlgItemText(pair.first->GetDlgCtrlID(), ctrlText);
-
-		currentCtrlValues.push_back(std::string(CT2CA(ctrlText)));
-	}
-
-	// ---------------------------
-
+void CConditionSearchDlg::SaveCtrlValue(std::vector<std::string>& currentCtrlValues, std::vector<std::pair<int, std::string>>& savedCtrlValues)
+{
 	std::string groupId = "";
 	for (auto& pair : currentControls)
 	{
@@ -542,30 +558,43 @@ void CConditionSearchDlg::SaveCtrlValue()
 		if (ctrlType == EControlType::ECT_Static || ctrlType == EControlType::ECT_None)
 			continue;
 
+		CString ctrlText;
+		GetDlgItemText(pair.first->GetDlgCtrlID(), ctrlText);
+
+		currentCtrlValues.push_back(std::string(CT2CA(ctrlText)));
+
 		if (groupId.length() == 0 || (groupId.length() > 0 && groupId == pair.second.radioGroupId))
 		{
-			CString ctrlText;
-			GetDlgItemText(pair.first->GetDlgCtrlID(), ctrlText);
-			savedControlValues.push_back(std::make_pair(pair.second.id, std::string(CT2CA(ctrlText))));
+			savedCtrlValues.push_back(std::make_pair(pair.second.id, std::string(CT2CA(ctrlText))));
 		}
 	}
 }
 
+void CConditionSearchDlg::PlusAddedConditionIndex()
+{
+	addedConditionIndex[0]++;
+}
+
 void CConditionSearchDlg::OnBtnClickedBtnModify()
 {
-	MakeCompleteText();
-	SaveCtrlValue();
-	m_ConditionItem->SetConditionText(completeTextCStr);
+	assert(addedConditionInfoMap.find(selectedConditionIndex) != addedConditionInfoMap.end());
+	assert(addedConditionDlgMap.find(selectedConditionIndex) != addedConditionDlgMap.end());
+	
+	auto& addedCondInfoPtr = addedConditionInfoMap[selectedConditionIndex];
+
+	MakeCompleteText(addedCondInfoPtr->completeText, addedCondInfoPtr->completeTextCStr);
+	SaveCtrlValue(addedCondInfoPtr->currentCtrlValues, addedCondInfoPtr->savedControlValues);
+	addedConditionDlgMap[selectedConditionIndex]->SetConditionText(addedCondInfoPtr->completeTextCStr);
 }
 
 
 void CConditionSearchDlg::OnBtnClickedBtnSearch()
 {
-	if (m_ConditionItem == nullptr || bPreviewMode)
+if (addedConditionDlgMap.size() == 0 || bPreviewMode)
 		return;
-
+	
 	m_ListCtrl.DeleteAllItems();
-	csvParserPtr->SearchData(&m_ListCtrl, currentCtrlValues, addedConditionId);
+	csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap["A"]->currentCtrlValues, addedConditionInfoMap["A"]->addedConditionId);
 }
 
 void CConditionSearchDlg::ClearListControl()
@@ -590,12 +619,12 @@ void CConditionSearchDlg::OnCondSave()
 	CFileDialog dlg(FALSE, defaultFilter, NULL, OFN_OVERWRITEPROMPT, fileFilter);
 	if (IDOK == dlg.DoModal())
 	{
-		const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
+		/*const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
 
 		const std::string completeText = m_ConditionItem->GetCompleteText();
 		const std::string filePathStr = std::string(CT2CA(conditionSavePath)) + "//" + completeText + ".xml";
 
-		xmlParserPtr->SaveConditionInfoToXML(pathName, addedConditionId, completeText, savedControlValues);
+		xmlParserPtr->SaveConditionInfoToXML(pathName, addedConditionId, completeText, savedControlValues);*/
 	}
 }
 
@@ -608,21 +637,21 @@ void CConditionSearchDlg::OnCondLoad()
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_FILEMUSTEXIST, fileFilter);
 	if (IDOK == dlg.DoModal())
 	{
-		const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
-		std::wstring pathName2 = dlg.GetPathName();
-		xmlParserPtr->LoadConditionInfo(pathName2, addedConditionId, completeText, savedControlValues);
-		completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
+		//const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
+		//std::wstring pathName2 = dlg.GetPathName();
+		//xmlParserPtr->LoadConditionInfo(pathName2, addedConditionId, completeText, savedControlValues);
+		//completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
 
-		// 종목 다이얼로그 텍스트 설정
-		CreateConditionDialog();
+		//// 종목 다이얼로그 텍스트 설정
+		//CreateConditionDialog();
 
-		// 조건 세부 설정 컨트롤 생성 및 값 설정
-		LoadControlStatus();
+		//// 조건 세부 설정 컨트롤 생성 및 값 설정
+		//LoadControlStatus();
 
-		m_BtnModify.EnableWindow(true);
+		//m_BtnModify.EnableWindow(true);
 
-		GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
-		GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
+		//GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
+		//GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
 	}
 }
 
@@ -679,7 +708,7 @@ void CConditionSearchDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	{
 		if (nID == SC_CLOSE)
 		{
-			jsonParserPtr->SaveStatusToJson(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
+			//jsonParserPtr->SaveStatusToJson(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
 		}
 
 		CDialogEx::OnSysCommand(nID, lParam);

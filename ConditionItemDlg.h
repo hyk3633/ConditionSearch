@@ -21,9 +21,9 @@ public:
 	enum { IDD = IDD_CONDITIONITEM };
 #endif
 
-	inline char GetConditionIndex() const { return conditionIndex; }
+	inline std::string GetConditionIndex() const { return index; }
 
-	void SetConditionIndex(const char index);
+	void SetConditionIndex(const std::string& idx);
 
 	afx_msg void OnBnClickedBtnDelete();
 
@@ -44,7 +44,9 @@ public:
 
 	CStatic m_StaticCompleteText;
 
-	char conditionIndex;
+	std::string index;
 
 	CButton m_Check_Index;
+	afx_msg void OnBnClickedBtnUp();
+	afx_msg void OnBnClickedBtnDown();
 };
