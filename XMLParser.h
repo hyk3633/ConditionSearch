@@ -56,7 +56,9 @@ public:
 
 	const std::vector<ControlAttribute>& GetControlInfo(const std::string& conditionId);
 
-	const std::vector<std::string>& GetCompleteIndexName(CString& conditionName);
+	const std::vector<std::string>& GetCompleteIndexName(const CString& conditionName);
+
+	const std::vector<std::string>& GetCompleteIndexName(const std::string& conditionId);
 
 	bool IsCondition(CString& cStr);
 

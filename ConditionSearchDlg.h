@@ -99,11 +99,17 @@ protected:
 
 	void MakeCompleteText(std::string& completeText, CString& completeTextCStr);
 
+	std::vector<std::string> GetCompleteIdxName();
+
+	std::string GetSelectedGroupId();
+
+	int GetGroupIndex(const std::string& groupId);
+
+	void ApplyPacketIdReplacements(std::string& completeText, const std::string& groupId);
+
+	void ApplyPacketIdReplacements(std::string& completeText);
+
 	void ReplacePakcetIdToValue(const EControlType controlType, const int ctrlId, const std::string& packetId, std::string& completeText);
-
-	ConditionItemDlg* CreateConditionDialog(const CString& completeTextCStr);
-
-	int GetConditionDlgY();
 
 	void SaveCtrlValue(std::vector<std::string>& currentCtrlValues, std::vector<std::pair<int, std::string>>& savedCtrlValues);
 
@@ -164,8 +170,6 @@ private:
 	std::string addedConditionIndex;
 
 	std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>> addedConditionInfoMap;
-
-	std::unordered_map<std::string, ConditionItemDlg*> addedConditionDlgMap;
 
 	std::string selectedConditionIndex;
 

@@ -36,7 +36,6 @@ void CConditionSearchDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CConditionSearchDlg, CDialogEx)
-//	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_NOTIFY(NM_DBLCLK, IDC_TREE_CONDITIONLIST, &CConditionSearchDlg::OnNMDblclkTreeConditionlist)
@@ -245,6 +244,7 @@ HCURSOR CConditionSearchDlg::OnQueryDragIcon()
 LRESULT CConditionSearchDlg::MsgClickConditionItem(WPARAM wParam, LPARAM lParam)
 {
 	const std::string index((char*)wParam);
+	selectedConditionIndex = index;
 
 	ClearCurrentControls();
 	ShowCurrentControls(index);
@@ -257,8 +257,6 @@ LRESULT CConditionSearchDlg::MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam
 	const std::string index((char*)wParam);
 	if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
 		return LRESULT();
-
-	
 
 	for (auto& control : addedConditionInfoMap[index]->currentControls)
 	{
@@ -455,8 +453,11 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 	if (IsAbleToAddCondition() == false)
 		return;
 
+	selectedConditionIndex = addedConditionIndex;
+
 	std::shared_ptr<AddedConditionInfo> addedCondInfoPtr = std::make_shared<AddedConditionInfo>();
-	
+	addedConditionInfoMap[addedConditionIndex] = addedCondInfoPtr;
+
 	addedCondInfoPtr->addedConditionId = xmlParserPtr->GetConditionId(GetItemText());
 
 	addedCondInfoPtr->currentControls = currentControls;
@@ -464,9 +465,8 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 	MakeCompleteText(addedCondInfoPtr->completeText, addedCondInfoPtr->completeTextCStr);
 	SaveCtrlValue(addedCondInfoPtr->currentCtrlValues, addedCondInfoPtr->savedControlValues);
 
-	addedConditionInfoMap[addedConditionIndex] = addedCondInfoPtr;
-
 	addedConditionView->Add(addedConditionIndex, addedCondInfoPtr->completeTextCStr);
+
 	PlusAddedConditionIndex();
 
 	m_BtnModify.EnableWindow(true);
@@ -491,59 +491,93 @@ bool CConditionSearchDlg::IsAbleToAddCondition()
 	}
 }
 
+
 void CConditionSearchDlg::MakeCompleteText(std::string& completeText, CString& completeTextCStr)
 {
-	if (CheckIsCondition() == false)
+	if (!CheckIsCondition())
 		return;
 
-	CString itemText = GetItemText();
-	const auto& completeIdxName = xmlParserPtr->GetCompleteIndexName(itemText);
-
-	if (completeIdxName.size() == 0)
+	std::vector<std::string>& completeIdxName = GetCompleteIdxName();
+	if (completeIdxName.empty())
 		return;
 
 	if (completeIdxName.size() == 1)
 	{
 		completeText = completeIdxName[0];
-
-		for (auto& pair : currentControls)
-		{
-			ReplacePakcetIdToValue(pair.second.controlType, pair.first->GetDlgCtrlID(), pair.second.packetId, completeText);
-		}
+		ApplyPacketIdReplacements(completeText);
 	}
 	else
 	{
-		std::string groupId;
+		std::string groupId = GetSelectedGroupId();
+		assert(!groupId.empty());
 
-		for (auto& pair : currentControls)
-		{
-			if (pair.second.controlType == EControlType::ECT_Radio)
-			{
-				CButton* radioBtn = dynamic_cast<CButton*>(pair.first);
-				assert(radioBtn);
-
-				if (radioBtn->GetCheck())
-				{
-					groupId = pair.second.radioGroupId;
-					break;
-				}
-			}
-		}
-
-		const int idx = stoi(groupId.substr(groupId.find("_") + 1)) - 1;
+		int idx = GetGroupIndex(groupId);
 		assert(idx < completeIdxName.size());
 		completeText = completeIdxName[idx];
-		
-		for (auto& pair : currentControls)
-		{
-			if (pair.second.packetId[0] != 'P' && pair.second.radioGroupId != groupId)
-				continue;
-		
-			ReplacePakcetIdToValue(pair.second.controlType, pair.first->GetDlgCtrlID(), pair.second.packetId, completeText);
-		}
+
+		ApplyPacketIdReplacements(completeText, groupId);
 	}
 
 	completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
+}
+
+std::vector<std::string> CConditionSearchDlg::GetCompleteIdxName()
+{
+	if (currentAddedControls)
+	{
+		const std::string& conditionId = addedConditionInfoMap[selectedConditionIndex]->addedConditionId;
+		return xmlParserPtr->GetCompleteIndexName(conditionId);
+	}
+	else
+	{
+		CString itemText = GetItemText();
+		return xmlParserPtr->GetCompleteIndexName(itemText);
+	}
+}
+
+std::string CConditionSearchDlg::GetSelectedGroupId()
+{
+	auto& controls = currentAddedControls ? *currentAddedControls : currentControls;
+
+	for (auto& pair : controls)
+	{
+		if (pair.second.controlType == EControlType::ECT_Radio)
+		{
+			CButton* radioBtn = dynamic_cast<CButton*>(pair.first);
+			assert(radioBtn);
+
+			if (radioBtn->GetCheck())
+				return pair.second.radioGroupId;
+		}
+	}
+
+	return {};
+}
+
+int CConditionSearchDlg::GetGroupIndex(const std::string& groupId)
+{
+	size_t underscorePos = groupId.find("_");
+	assert(underscorePos != std::string::npos);
+
+	return stoi(groupId.substr(underscorePos + 1)) - 1;
+}
+
+void CConditionSearchDlg::ApplyPacketIdReplacements(std::string& completeText, const std::string& groupId)
+{
+	auto& controls = currentAddedControls ? *currentAddedControls : currentControls;
+
+	for (auto& pair : controls)
+	{
+		if (groupId.empty() || (pair.second.packetId[0] == 'P' || pair.second.radioGroupId == groupId))
+		{
+			ReplacePakcetIdToValue(pair.second.controlType, pair.first->GetDlgCtrlID(), pair.second.packetId, completeText);
+		}
+	}
+}
+
+void CConditionSearchDlg::ApplyPacketIdReplacements(std::string& completeText)
+{
+	ApplyPacketIdReplacements(completeText, {});
 }
 
 void CConditionSearchDlg::ReplacePakcetIdToValue(const EControlType controlType, const int ctrlId, const std::string& packetId, std::string& completeText)
@@ -562,25 +596,6 @@ void CConditionSearchDlg::ReplacePakcetIdToValue(const EControlType controlType,
 
 	if(completeText.find(bracedPacketId) != std::string::npos)
 		completeText.replace(completeText.find(bracedPacketId), bracedPacketId.length(), newText);
-}
-
-ConditionItemDlg* CConditionSearchDlg::CreateConditionDialog(const CString& completeTextCStr)
-{
-	ConditionItemDlg* addedConditionDlg = new ConditionItemDlg();
-	addedConditionDlg->Create(IDD_CONDITIONITEM, addedConditionView);
-	addedConditionDlg->ShowWindow(SW_HIDE);
-	addedConditionDlg->SetWindowPos(NULL, 330, GetConditionDlgY(), 0, 0, SWP_NOSIZE);
-
-	// 종목검색조건 다이얼로그에 표시될 텍스트 설정
-	addedConditionDlg->SetConditionText(completeTextCStr);
-	addedConditionDlg->ShowWindow(SW_SHOW);
-
-	return addedConditionDlg;
-}
-
-int CConditionSearchDlg::GetConditionDlgY()
-{
-	return (addedConditionDlgMap.size() + 1) * 50;
 }
 
 void CConditionSearchDlg::SaveCtrlValue(std::vector<std::string>& currentCtrlValues, std::vector<std::pair<int, std::string>>& savedCtrlValues)
@@ -627,20 +642,18 @@ void CConditionSearchDlg::PlusAddedConditionIndex()
 void CConditionSearchDlg::OnBtnClickedBtnModify()
 {
 	assert(addedConditionInfoMap.find(selectedConditionIndex) != addedConditionInfoMap.end());
-	assert(addedConditionDlgMap.find(selectedConditionIndex) != addedConditionDlgMap.end());
 	
 	auto& addedCondInfoPtr = addedConditionInfoMap[selectedConditionIndex];
 
 	MakeCompleteText(addedCondInfoPtr->completeText, addedCondInfoPtr->completeTextCStr);
 	SaveCtrlValue(addedCondInfoPtr->currentCtrlValues, addedCondInfoPtr->savedControlValues);
-	addedConditionDlgMap[selectedConditionIndex]->SetConditionText(addedCondInfoPtr->completeTextCStr);
+	addedConditionView->SetConditionText(selectedConditionIndex, addedCondInfoPtr->completeTextCStr);
 }
 
 
 void CConditionSearchDlg::OnBtnClickedBtnSearch()
 {
-if (addedConditionDlgMap.size() == 0 || bPreviewMode)
-		return;
+	// 조건 추가
 	
 	m_ListCtrl.DeleteAllItems();
 	csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap["A"]->currentCtrlValues, addedConditionInfoMap["A"]->addedConditionId);

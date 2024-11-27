@@ -59,6 +59,10 @@ protected:
 
 	int GetTopPosition();
 
+public:
+
+	void SetConditionText(const std::string& index, const CString& completeText);
+
 private:
 
 	int count = 0;

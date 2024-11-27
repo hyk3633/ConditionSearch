@@ -191,3 +191,9 @@ int AddedConditionView::GetTopPosition()
 {
 	return count++ * ITEM_GAP - GetScrollPosition().y;
 }
+
+void AddedConditionView::SetConditionText(const std::string& index, const CString& completeText)
+{
+	assert(addedConditionDlgMap.find(index) != addedConditionDlgMap.end());
+	addedConditionDlgMap[index]->SetConditionText(completeText);
+}

@@ -241,11 +241,16 @@ const std::vector<ControlAttribute>& XMLParser::GetControlInfo(const std::string
 	return controlAttMap[conditionId];
 }
 
-const std::vector<std::string>& XMLParser::GetCompleteIndexName(CString& conditionName)
+const std::vector<std::string>& XMLParser::GetCompleteIndexName(const CString& conditionName)
 {
-	string conitionId = conditionIdMap[conditionName.GetString()].id;
-	assert(completeIndexNameMap.find(conitionId) != completeIndexNameMap.end());
-	return completeIndexNameMap[conitionId];
+	string conditionId = conditionIdMap[conditionName.GetString()].id;
+	return GetCompleteIndexName(conditionId);
+}
+
+const std::vector<std::string>& XMLParser::GetCompleteIndexName(const std::string& conditionId)
+{
+	assert(completeIndexNameMap.find(conditionId) != completeIndexNameMap.end());
+	return completeIndexNameMap[conditionId];
 }
 
 bool XMLParser::IsCondition(CString& cStr)
