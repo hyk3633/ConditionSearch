@@ -291,16 +291,7 @@ void CConditionSearchDlg::ClearCurrentControls()
 	}
 	else
 	{
-		for (auto& control : currentControls)
-		{
-			if (control.first != nullptr)
-			{
-				control.first->ShowWindow(SW_HIDE);
-				control.first->DestroyWindow();
-				delete control.first;
-			}
-		}
-		currentControls.clear();
+		InitializeControls(currentControls);
 	}
 }
 
@@ -356,8 +347,10 @@ bool CConditionSearchDlg::CheckIsCondition()
 	return false;
 }
 
-void CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& controlInfo)
+std::vector<std::pair<CWnd*, ControlAttribute>> CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& controlInfo, const bool bVisible)
 {
+	currentControls.clear();
+
 	bool firstRadio = true;
 
 	std::unordered_map<int, std::vector<int>> topMap;
@@ -422,11 +415,16 @@ void CConditionSearchDlg::CreateControls(const std::vector<ControlAttribute>& co
 			wnd = comboBox;
 		}
 
+		if (bVisible == false)
+			wnd->ShowWindow(SW_HIDE);
+
 		idCount += 50;
 
 		SetControlFontSize(this, wnd, 8);
 		currentControls.emplace_back(std::make_pair(wnd, att));
 	}
+
+	return currentControls;
 }
 
 void CConditionSearchDlg::SetControlFontSize(CWnd* pParentWnd, CWnd* pControl, int fontSize)
@@ -525,6 +523,9 @@ std::vector<std::string> CConditionSearchDlg::GetCompleteIdxName()
 {
 	if (currentAddedControls)
 	{
+		if (addedConditionInfoMap.find(selectedConditionIndex) == addedConditionInfoMap.end())
+			return std::vector<std::string>();
+
 		const std::string& conditionId = addedConditionInfoMap[selectedConditionIndex]->addedConditionId;
 		return xmlParserPtr->GetCompleteIndexName(conditionId);
 	}
@@ -653,10 +654,10 @@ void CConditionSearchDlg::OnBtnClickedBtnModify()
 
 void CConditionSearchDlg::OnBtnClickedBtnSearch()
 {
-	// 조건 추가
+	// 리턴 조건 추가
 	
-	m_ListCtrl.DeleteAllItems();
-	csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap["A"]->currentCtrlValues, addedConditionInfoMap["A"]->addedConditionId);
+	//m_ListCtrl.DeleteAllItems();
+	//csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap["A"]->currentCtrlValues, addedConditionInfoMap["A"]->addedConditionId);
 }
 
 void CConditionSearchDlg::ClearListControl()
@@ -679,14 +680,11 @@ void CConditionSearchDlg::OnCondSave()
 	CString fileFilter = _T("XML Files (*.xml)|*.xml|");
 	CString defaultFilter = _T("xml");
 	CFileDialog dlg(FALSE, defaultFilter, NULL, OFN_OVERWRITEPROMPT, fileFilter);
-	if (IDOK == dlg.DoModal())
+	if (dlg.DoModal() == IDOK)
 	{
-		/*const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
-
-		const std::string completeText = m_ConditionItem->GetCompleteText();
-		const std::string filePathStr = std::string(CT2CA(conditionSavePath)) + "//" + completeText + ".xml";
-
-		xmlParserPtr->SaveConditionInfoToXML(pathName, addedConditionId, completeText, savedControlValues);*/
+		const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
+		auto& indexOrder = addedConditionView->GetIndexOrder();
+		xmlParserPtr->SaveConditionInfoToXML(pathName, indexOrder, addedConditionInfoMap);
 	}
 }
 
@@ -699,16 +697,31 @@ void CConditionSearchDlg::OnCondLoad()
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_FILEMUSTEXIST, fileFilter);
 	if (IDOK == dlg.DoModal())
 	{
-		//const std::string pathName = std::string(CT2CA(dlg.GetPathName()));
-		//std::wstring pathName2 = dlg.GetPathName();
-		//xmlParserPtr->LoadConditionInfo(pathName2, addedConditionId, completeText, savedControlValues);
-		//completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
+		InitializeConditionsAndControls();
 
-		//// 종목 다이얼로그 텍스트 설정
-		//CreateConditionDialog();
+		const std::wstring pathName = dlg.GetPathName();
+		std::vector<std::string> indexOrder;
+		xmlParserPtr->LoadConditionInfo(pathName, indexOrder, addedConditionInfoMap);
 
-		//// 조건 세부 설정 컨트롤 생성 및 값 설정
-		//LoadControlStatus();
+		addedConditionView->ClearConditionDlgs();
+
+		// 종목 다이얼로그 생성
+		for (const std::string& index : indexOrder)
+		{
+			if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
+				continue;
+			const CString& completeText = addedConditionInfoMap[index]->completeTextCStr;
+			addedConditionView->Add(index, completeText);
+		}
+
+		// 종목 컨트롤 생성 및 값 설정
+		for (auto& p : addedConditionInfoMap)
+		{
+			const auto& controlInfo = xmlParserPtr->GetControlInfo(p.second->addedConditionId);
+			p.second->currentControls = CreateControls(controlInfo, false);
+			SaveCtrlValue(p.second->currentCtrlValues, p.second->savedControlValues);
+			currentControls.clear();
+		}
 
 		//m_BtnModify.EnableWindow(true);
 
@@ -755,6 +768,32 @@ void CConditionSearchDlg::SetToPreviewMode()
 	bPreviewMode = true;
 }
 
+void CConditionSearchDlg::InitializeConditionsAndControls()
+{
+	InitializeControls(currentControls);
+	currentAddedControls = nullptr;
+	for (auto& p : addedConditionInfoMap)
+	{
+		InitializeControls(p.second->currentControls);
+	}
+	addedConditionInfoMap.clear();
+	addedConditionIndex = "";
+	selectedConditionIndex = "";
+}
+
+void CConditionSearchDlg::InitializeControls(std::vector<std::pair<CWnd*, ControlAttribute>>& controls)
+{
+	for (auto& control : controls)
+	{
+		if (control.first != nullptr)
+		{
+			control.first->ShowWindow(SW_HIDE);
+			control.first->DestroyWindow();
+			delete control.first;
+		}
+	}
+	controls.clear();
+}
 
 void CConditionSearchDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {

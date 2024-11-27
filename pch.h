@@ -65,6 +65,21 @@ struct ControlAttribute
 	int height;
 };
 
+struct AddedConditionInfo
+{
+	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
+
+	std::vector<std::pair<int, std::string>> savedControlValues;
+
+	std::vector<std::string> currentCtrlValues;
+
+	std::string addedConditionId;
+
+	std::string completeText;
+
+	CString completeTextCStr;
+};
+
 std::wstring MultibyteToUnicode(const char* str);
 
 struct StockData

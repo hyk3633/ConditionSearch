@@ -273,31 +273,44 @@ string XMLParser::GetConditionId(const CString& conditionName)
 		return string();
 }
 
-void XMLParser::SaveConditionInfoToXML(const std::string& filePath, const std::string& addedConditionId, const std::string& completeText, const std::vector<std::pair<int, std::string>>& controlValues)
+void XMLParser::SaveConditionInfoToXML(const std::string& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo)
 {
 	CMarkup xml;
 
-	xml.AddElem(_T("조건"));
-	xml.IntoElem();
-
 	xml.AddElem(_T("CONDITION"));
-
-	wstring wConditionId = MultibyteToUnicode(addedConditionId.c_str());
-	xml.AddAttrib(_T("ID"), wConditionId.c_str());
-	wstring wText = MultibyteToUnicode(completeText.c_str());
-	xml.AddAttrib(_T("NAME"), wText.c_str());
-
 	xml.IntoElem();
 
-	for (auto& ctrlVal : controlValues)
+	for (string& index : addedConditionIndexes)
 	{
-		xml.AddElem(_T("CONTROL"));
+		if (addedConditionInfo.find(index) == addedConditionInfo.end())
+			continue;
 
-		wstring wId = MultibyteToUnicode(to_string(ctrlVal.first).c_str());
-		xml.AddAttrib(_T("ID"), wId.c_str());
-		
-		wstring wVal = MultibyteToUnicode(ctrlVal.second.c_str());
-		xml.AddAttrib(_T("VALUE"), wVal.c_str());
+		const wstring wIndex = MultibyteToUnicode(index.c_str());
+		xml.AddElem(wIndex.c_str());
+
+		const auto& condInfo = addedConditionInfo[index];
+
+		const wstring wConditionId = MultibyteToUnicode(condInfo->addedConditionId.c_str());
+		xml.AddAttrib(_T("ID"), wConditionId.c_str());
+
+		const wstring wText = MultibyteToUnicode(condInfo->completeText.c_str());
+		xml.AddAttrib(_T("NAME"), wText.c_str());
+
+		xml.IntoElem();
+
+		auto& ctrlValues = condInfo->savedControlValues;
+		for (auto& pValue : ctrlValues)
+		{
+			xml.AddElem(_T("CONTROL"));
+
+			wstring wId = MultibyteToUnicode(to_string(pValue.first).c_str());
+			xml.AddAttrib(_T("ID"), wId.c_str());
+
+			wstring wVal = MultibyteToUnicode(pValue.second.c_str());
+			xml.AddAttrib(_T("VALUE"), wVal.c_str());
+		}
+
+		xml.OutOfElem();
 	}
 
 	xml.OutOfElem();
@@ -306,31 +319,41 @@ void XMLParser::SaveConditionInfoToXML(const std::string& filePath, const std::s
 	xml.Save(wFilePath.c_str());
 }
 
-void XMLParser::LoadConditionInfo(std::wstring& filePath, std::string& conditionId, std::string& completeText, std::vector<std::pair<int, std::string>>& controlValues)
+void XMLParser::LoadConditionInfo(const std::wstring& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo)
 {
-	controlValues.clear();
-
 	CMarkup xml;
 	xml.Load(filePath.c_str());
 
-	xml.FindElem(_T("조건"));
-
-	xml.IntoElem();
-
 	xml.FindElem(_T("CONDITION"));
-	conditionId = string(CT2CA(xml.GetAttrib(_T("ID"))));
-	completeText = string(CT2CA(xml.GetAttrib(_T("NAME"))));
-
 	bool bValid = xml.IntoElem();
 	while (bValid)
 	{
-		bValid = xml.FindElem(_T("CONTROL"));
-		if (bValid)
+		bValid = xml.FindElem();
+		if (bValid == false)
+			break;
+
+		const string index = string(CT2CA(xml.GetTagName()));
+		addedConditionIndexes.push_back(index);
+
+		shared_ptr<AddedConditionInfo> condInfo = make_shared<AddedConditionInfo>();
+		addedConditionInfo[index] = condInfo;
+
+		condInfo->addedConditionId = string(CT2CA(xml.GetAttrib(_T("ID"))));
+		const CString completeTextCStr = xml.GetAttrib(_T("NAME"));
+		condInfo->completeTextCStr = completeTextCStr;
+		condInfo->completeText = string(CT2CA(completeTextCStr));
+
+		bool bValid2 = xml.IntoElem();
+		while (bValid2)
 		{
+			bValid2 = xml.FindElem(_T("CONTROL"));
+			if (bValid2 == false)
+				break;
 			const int id = _ttoi(xml.GetAttrib(_T("ID")));
 			const string value = string(CT2CA(xml.GetAttrib(_T("VALUE"))));
 
-			controlValues.push_back(std::make_pair(id, value));
+			condInfo->savedControlValues.push_back(make_pair(id, value));
 		}
+		xml.OutOfElem();
 	}
 }

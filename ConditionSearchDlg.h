@@ -25,21 +25,6 @@
 class ConditionItemDlg;
 class AddedConditionView;
 
-struct AddedConditionInfo
-{
-	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
-
-	std::vector<std::pair<int, std::string>> savedControlValues;
-
-	std::vector<std::string> currentCtrlValues;
-
-	std::string addedConditionId;
-
-	std::string completeText;
-
-	CString completeTextCStr;
-};
-
 // CConditionSearchDlg 대화 상자
 class CConditionSearchDlg : public CDialogEx
 {
@@ -85,7 +70,7 @@ protected:
 
 	bool CheckIsCondition();
 
-	void CreateControls(const std::vector<ControlAttribute>& controlInfo);
+	std::vector<std::pair<CWnd*, ControlAttribute>> CreateControls(const std::vector<ControlAttribute>& controlInfo, const bool bVisible = true);
 
 	void SetControlFontSize(CWnd* pParentWnd, CWnd* pControl, int fontSize);
 
@@ -138,6 +123,10 @@ protected:
 
 	void SetToPreviewMode();
 
+	void InitializeConditionsAndControls();
+
+	void InitializeControls(std::vector<std::pair<CWnd*, ControlAttribute>>& controls);
+
 public:
 
 	inline COLORREF* GetFontColor() { return &currentFontColor; }
@@ -161,7 +150,6 @@ private:
 	std::unique_ptr<CSVParser> csvParserPtr;
 
 	std::unique_ptr<JsonParser> jsonParserPtr;
-
 
 	std::vector<std::pair<CWnd*, ControlAttribute>> currentControls;
 

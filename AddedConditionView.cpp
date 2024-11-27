@@ -197,3 +197,30 @@ void AddedConditionView::SetConditionText(const std::string& index, const CStrin
 	assert(addedConditionDlgMap.find(index) != addedConditionDlgMap.end());
 	addedConditionDlgMap[index]->SetConditionText(completeText);
 }
+
+std::vector<std::string> AddedConditionView::GetIndexOrder()
+{
+	std::vector<std::string> indexOrder;
+	indexOrder.reserve(addedConditionDlgVec.size());
+
+	for (auto& p : addedConditionDlgVec)
+	{
+		indexOrder.push_back(p.first);
+	}
+	return indexOrder;
+}
+
+void AddedConditionView::ClearConditionDlgs()
+{
+	sizeTotal.cx = 870;
+	sizeTotal.cy = ITEM_GAP;
+	SetScrollSizes(MM_TEXT, sizeTotal);
+
+	for (auto& p : addedConditionDlgMap)
+	{
+		p.second->ShowWindow(SW_HIDE);
+		p.second->DestroyWindow();
+		delete p.second;
+	}
+	addedConditionDlgVec.clear();
+}

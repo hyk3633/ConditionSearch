@@ -63,6 +63,10 @@ public:
 
 	void SetConditionText(const std::string& index, const CString& completeText);
 
+	std::vector<std::string> GetIndexOrder();
+
+	void ClearConditionDlgs();
+
 private:
 
 	int count = 0;

@@ -64,13 +64,11 @@ public:
 
 	std::string GetConditionId(const CString& conditionName);
 
-	void SaveConditionInfoToXML(const std::string& filePath, const std::string& addedConditionId, const std::string& completeText, const std::vector<std::pair<int, std::string>>& controlValues);
+	void SaveConditionInfoToXML(const std::string& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo);
 
-	void LoadConditionInfo(std::wstring& filePath, std::string& conditionId, std::string& completeText, std::vector<std::pair<int, std::string>>& controlValues);
+	void LoadConditionInfo(const std::wstring& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo);
 
 private:
-
-	
 
 	const char* TREE_FILE_PATH = "..//XMLFile//treecommon.xml";
 
