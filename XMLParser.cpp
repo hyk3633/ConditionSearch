@@ -319,10 +319,12 @@ void XMLParser::SaveConditionInfoToXML(const std::string& filePath, std::vector<
 	xml.Save(wFilePath.c_str());
 }
 
-void XMLParser::LoadConditionInfo(const std::wstring& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo)
+void XMLParser::LoadConditionInfo(const std::wstring& filePath, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo, std::string& lastIndex)
 {
 	CMarkup xml;
 	xml.Load(filePath.c_str());
+
+	lastIndex = "A";
 
 	xml.FindElem(_T("CONDITION"));
 	bool bValid = xml.IntoElem();
@@ -334,6 +336,7 @@ void XMLParser::LoadConditionInfo(const std::wstring& filePath, std::vector<std:
 
 		const string index = string(CT2CA(xml.GetTagName()));
 		addedConditionIndexes.push_back(index);
+		lastIndex = lastIndex < index ? index : lastIndex;
 
 		shared_ptr<AddedConditionInfo> condInfo = make_shared<AddedConditionInfo>();
 		addedConditionInfo[index] = condInfo;
@@ -356,4 +359,9 @@ void XMLParser::LoadConditionInfo(const std::wstring& filePath, std::vector<std:
 		}
 		xml.OutOfElem();
 	}
+
+	if (lastIndex == "Z")
+		lastIndex = "a";
+	else
+		lastIndex[0]++;
 }

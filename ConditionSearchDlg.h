@@ -127,6 +127,8 @@ protected:
 
 	void InitializeControls(std::vector<std::pair<CWnd*, ControlAttribute>>& controls);
 
+	void ChangeButtonState();
+
 public:
 
 	inline COLORREF* GetFontColor() { return &currentFontColor; }
@@ -183,4 +185,6 @@ private:
 
 	int idCount = 0;
 
+public:
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 };

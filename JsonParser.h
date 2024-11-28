@@ -3,7 +3,16 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <unordered_map>
+#include "pch.h"
 #include "framework.h"
+
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/filereadstream.h"
+
+using namespace rapidjson;
 
 class JsonParser
 {
@@ -12,11 +21,13 @@ public:
 	JsonParser();
 	virtual ~JsonParser();
 
-	void SaveStatusToJson(const COLORREF& bgColor, const COLORREF& fontColor, const std::string& conditionId = "", const std::string& completeText = "", const std::vector<std::pair<int, std::string>>& controlValues = std::vector<std::pair<int, std::string>>());
+	void SaveStatusToJson(const COLORREF& bgColor, const COLORREF& fontColor, std::vector<std::string>& addedConditionIndexes = std::vector<std::string>(), std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo = std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>());
 
-	void LoadStatus(COLORREF& bgColor, COLORREF& fontColor, std::string& conditionId, std::string& completeText, std::vector<std::pair<int, std::string>>& controlValues);
+	void LoadStatus(COLORREF& bgColor, COLORREF& fontColor, std::vector<std::string>& addedConditionIndexes, std::unordered_map<std::string, std::shared_ptr<AddedConditionInfo>>& addedConditionInfo, std::string& lastIndex);
 
 protected:
+
+	void AddStringToValue(Document& doc, Value& val, const std::string& str, const char* name);
 
 	void MakeFolder();
 

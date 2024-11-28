@@ -223,4 +223,6 @@ void AddedConditionView::ClearConditionDlgs()
 		delete p.second;
 	}
 	addedConditionDlgVec.clear();
+
+	count = 0;
 }

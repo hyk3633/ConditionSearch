@@ -51,6 +51,8 @@ BEGIN_MESSAGE_MAP(CConditionSearchDlg, CDialogEx)
 	ON_COMMAND(ID_SET_COLOR, &CConditionSearchDlg::OnSetColor)
 	ON_WM_CTLCOLOR()
 	ON_WM_SYSCOMMAND()
+//	ON_WM_RBUTTONDOWN()
+ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
 
 // CConditionSearchDlg 메시지 처리기
@@ -150,30 +152,9 @@ BOOL CConditionSearchDlg::OnInitDialog()
 		}
 	}
 
-	//jsonParserPtr = std::make_unique<JsonParser>();
-	//jsonParserPtr->LoadStatus(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
-
-	// 배경 색 설정
-	SetBackgroundColor(currentBgColor);
-
-	// 폰트 색 설정
-	for (auto& control : fontColorControls)
-	{
-		control->Invalidate();
-		control->UpdateWindow();
-	}
-	
-	//if (addedConditionId.length() > 0)
-	//{
-	//	// 조건 컨트롤 생성 및 값 설정
-	//	LoadControlStatus();
-
-	//	m_BtnModify.EnableWindow(true);
-
-	//	// 컨디션 dlg 생성 및 텍스트 설정
-	//	completeTextCStr = MultibyteToUnicode(completeText.c_str()).c_str();
-	//	CreateConditionDialog();
-	//}
+	jsonParserPtr = std::make_unique<JsonParser>();
+	std::vector<std::string> addedConditionIndexes;
+	jsonParserPtr->LoadStatus(currentBgColor, currentFontColor, addedConditionIndexes, addedConditionInfoMap, addedConditionIndex);
 
 	colorChangeDlg = ::CreateDlg();
 	colorChangeDlg->SetDlgVariable(this, fontColorControls, &currentBgColor, &currentFontColor);
@@ -184,6 +165,38 @@ BOOL CConditionSearchDlg::OnInitDialog()
 	addedConditionView->Create(NULL, NULL, WS_CHILD | WS_VSCROLL, viewRect, this, IDD_FORMVIEW, NULL);
 	addedConditionView->OnInitialUpdate();
 	addedConditionView->ShowWindow(SW_SHOW);
+
+	// 배경 색 설정
+	SetBackgroundColor(currentBgColor);
+
+	// 폰트 색 설정
+	for (auto& control : fontColorControls)
+	{
+		control->Invalidate();
+		control->UpdateWindow();
+	}
+
+	// 종목 다이얼로그 생성
+	for (const std::string& index : addedConditionIndexes)
+	{
+		if (addedConditionInfoMap.find(index) == addedConditionInfoMap.end())
+			continue;
+		const CString& completeText = addedConditionInfoMap[index]->completeTextCStr;
+		addedConditionView->Add(index, completeText);
+	}
+
+	// 종목 컨트롤 생성 및 값 설정
+	for (auto& p : addedConditionInfoMap)
+	{
+		const auto& controlInfo = xmlParserPtr->GetControlInfo(p.second->addedConditionId);
+		p.second->currentControls = CreateControls(controlInfo, false);
+		SaveCtrlValue(p.second->currentCtrlValues, p.second->savedControlValues);
+		currentControls.clear();
+	}
+
+	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);
+
+	ChangeButtonState();
 
 	return TRUE;
 }
@@ -249,6 +262,8 @@ LRESULT CConditionSearchDlg::MsgClickConditionItem(WPARAM wParam, LPARAM lParam)
 	ClearCurrentControls();
 	ShowCurrentControls(index);
 
+	ChangeButtonState();
+
 	return LRESULT();
 }
 
@@ -271,10 +286,9 @@ LRESULT CConditionSearchDlg::MsgDeleteConditionItem(WPARAM wParam, LPARAM lParam
 	addedConditionInfoMap.erase(index);
 	std::cout << "delete condition item\n";
 
-	//ClearCurrentControls();
+	ClearCurrentControls();
 
-	//GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_DISABLED);
-	//GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);
+	ChangeButtonState();
 
 	return LRESULT();
 }
@@ -329,7 +343,8 @@ void CConditionSearchDlg::OnNMDblclkTreeConditionlist(NMHDR* pNMHDR, LRESULT* pR
 		// 세부 설정 창 생성
 		const auto& controlInfo = xmlParserPtr->GetControlInfo(GetItemText());
 		CreateControls(controlInfo);
-		m_BtnAdd.EnableWindow(true);
+
+		ChangeButtonState();
 	}
 }
 
@@ -467,13 +482,9 @@ void CConditionSearchDlg::OnBtnClickedBtnAdd()
 
 	PlusAddedConditionIndex();
 
-	m_BtnModify.EnableWindow(true);
-	m_BtnAdd.EnableWindow(false);
-
-	GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
-	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
-
 	currentControls.clear();
+
+	ChangeButtonState();
 }
 
 bool CConditionSearchDlg::IsAbleToAddCondition()
@@ -699,11 +710,11 @@ void CConditionSearchDlg::OnCondLoad()
 	{
 		InitializeConditionsAndControls();
 
+		addedConditionView->ClearConditionDlgs();
+
 		const std::wstring pathName = dlg.GetPathName();
 		std::vector<std::string> indexOrder;
-		xmlParserPtr->LoadConditionInfo(pathName, indexOrder, addedConditionInfoMap);
-
-		addedConditionView->ClearConditionDlgs();
+		xmlParserPtr->LoadConditionInfo(pathName, indexOrder, addedConditionInfoMap, addedConditionIndex);
 
 		// 종목 다이얼로그 생성
 		for (const std::string& index : indexOrder)
@@ -723,10 +734,7 @@ void CConditionSearchDlg::OnCondLoad()
 			currentControls.clear();
 		}
 
-		//m_BtnModify.EnableWindow(true);
-
-		//GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
-		//GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_DISABLED);
+		ChangeButtonState();
 	}
 }
 
@@ -795,6 +803,31 @@ void CConditionSearchDlg::InitializeControls(std::vector<std::pair<CWnd*, Contro
 	controls.clear();
 }
 
+void CConditionSearchDlg::ChangeButtonState()
+{
+	if (addedConditionInfoMap.size())
+	{
+		GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_ENABLED);
+		m_Btn_Search.EnableWindow(true);
+	}
+	else
+	{
+		GetMenu()->EnableMenuItem(ID_COND_SAVE, MF_BYCOMMAND | MF_DISABLED);
+		m_Btn_Search.EnableWindow(false);
+	}
+
+	if (currentAddedControls)
+		m_BtnModify.EnableWindow(true);
+	else
+		m_BtnModify.EnableWindow(false);
+
+	if(currentControls.size())
+		m_BtnAdd.EnableWindow(true);
+	else
+		m_BtnAdd.EnableWindow(false);
+
+}
+
 void CConditionSearchDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
 	if (bPreviewMode)
@@ -809,9 +842,17 @@ void CConditionSearchDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	{
 		if (nID == SC_CLOSE)
 		{
-			//jsonParserPtr->SaveStatusToJson(currentBgColor, currentFontColor, addedConditionId, completeText, savedControlValues);
+			auto& indexOrder = addedConditionView->GetIndexOrder();
+			jsonParserPtr->SaveStatusToJson(currentBgColor, currentFontColor, indexOrder, addedConditionInfoMap);
 		}
 
 		CDialogEx::OnSysCommand(nID, lParam);
 	}
+}
+
+void CConditionSearchDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	
+
+	CDialogEx::OnLButtonDown(nFlags, point);
 }
