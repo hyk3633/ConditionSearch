@@ -7,6 +7,7 @@
 #include "afxdialogex.h"
 #include "ConditionItemDlg.h"
 #include "AddedConditionView.h"
+#include <algorithm>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -197,6 +198,9 @@ BOOL CConditionSearchDlg::OnInitDialog()
 	GetMenu()->EnableMenuItem(ID_COND_LOAD, MF_BYCOMMAND | MF_ENABLED);
 
 	ChangeButtonState();
+
+	for (char a = 'A'; a <= 'Z'; a++)
+		aToZ += a;
 
 	return TRUE;
 }
@@ -667,8 +671,18 @@ void CConditionSearchDlg::OnBtnClickedBtnSearch()
 {
 	// 리턴 조건 추가
 	
-	//m_ListCtrl.DeleteAllItems();
-	//csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap["A"]->currentCtrlValues, addedConditionInfoMap["A"]->addedConditionId);
+	m_ListCtrl.DeleteAllItems();
+	
+	for (char key : aToZ)
+	{
+		std::string keyStr = std::string(1, key);
+		if (addedConditionInfoMap.find(keyStr) == addedConditionInfoMap.end())
+			continue;
+
+		bool bValidKey = csvParserPtr->SearchData(&m_ListCtrl, addedConditionInfoMap[keyStr]->currentCtrlValues, addedConditionInfoMap[keyStr]->addedConditionId);
+		if (bValidKey)
+			break;
+	}
 }
 
 void CConditionSearchDlg::ClearListControl()

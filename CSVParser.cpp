@@ -68,12 +68,15 @@ bool CSVParser::ParsingCSV(CListCtrl* listCtrl)
 	return true;
 }
 
-void CSVParser::SearchData(CListCtrl* listCtrl, const std::vector<std::string>& ctrlValues, const std::string& conditionId)
+bool CSVParser::SearchData(CListCtrl* listCtrl, const std::vector<std::string>& ctrlValues, const std::string& conditionId)
 {
 	if (conditionLogicMap.find(conditionId) != conditionLogicMap.end())
 	{
 		conditionLogicMap[conditionId](listCtrl, ctrlValues);
+		return true;
 	}
+	else
+		return false;
 }
 
 void CSVParser::StockPriceRank(CListCtrl* listCtrl, const std::vector<std::string>& ctrlValues)

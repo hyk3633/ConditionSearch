@@ -13,7 +13,7 @@ public:
 
 	bool ParsingCSV(CListCtrl* listCtrl);
 
-	void SearchData(CListCtrl* listCtrl, const std::vector<std::string>& ctrlValues, const std::string& conditionId);
+	bool SearchData(CListCtrl* listCtrl, const std::vector<std::string>& ctrlValues, const std::string& conditionId);
 
 protected:
 

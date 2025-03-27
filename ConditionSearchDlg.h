@@ -185,6 +185,8 @@ private:
 
 	int idCount = 0;
 
+	std::string aToZ;
+
 public:
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 };
